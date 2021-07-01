@@ -9,9 +9,6 @@ import (
 	"time"
 )
 
-
-
-
 type LogLevel uint8
 
 const (
@@ -31,11 +28,11 @@ const (
 )
 
 type logMsg struct {
-	level LogLevel
-	msg   string
-	time  string
+	level    LogLevel
+	msg      string
+	time     string
 	funcName string
-	lineNo int64
+	lineNo   int64
 }
 
 type Logger struct {
@@ -49,13 +46,14 @@ type Logger struct {
 	msg      chan *logMsg //存储日志msg的通道
 }
 
-var once sync.Once
+var once1 sync.Once
+var once2 sync.Once
 var logger *Logger
 
 //获取单例Logger对象
 func getInstance() *Logger {
 	if logger == nil {
-		once.Do(func() {
+		once1.Do(func() {
 			logger = &Logger{
 				Level: DEBUG,
 				LevelStr: map[LogLevel]string{
@@ -83,13 +81,6 @@ func init() {
 	logger.filePath = curPath
 
 	//打开文件
-	fileObj, err := os.OpenFile(path.Join(logger.filePath, logger.fileName), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		fmt.Println("open file failed, err:", err)
-		return
-	}
-
-	logger.fileObj = fileObj
 
 	go outPut()
 
@@ -118,6 +109,21 @@ func outPut() {
 
 func (l *Logger) handleLogMsg(logLevel LogLevel, msg interface{}) {
 
+	//第一次收到消息时判断是否需要打开文件
+	once2.Do(func() {
+		if l.OutputType&ONLY_FILE == ONLY_FILE {
+			fileObj, err := os.OpenFile(path.Join(logger.filePath, logger.fileName), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+			if err != nil {
+				fmt.Println("open file failed, err:", err)
+				return
+			}
+
+			logger.fileObj = fileObj
+		}
+
+	})
+
+	//处理收到的消息，填充结构体
 	log := &logMsg{
 		level: logLevel,
 		msg:   fmt.Sprint(msg),
@@ -165,7 +171,6 @@ func Fatal(msg interface{}) {
 func Error(msg interface{}) {
 	logger.handleLogMsg(ERROR, msg)
 }
-
 
 func getFuncCallerInfo() (string, int64) {
 	_, funcName, lineNo, ok := runtime.Caller(3)
