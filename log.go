@@ -175,14 +175,17 @@ func Error(msg interface{}) {
 	logger.handleLogMsg(ERROR, msg)
 }
 
+//获取调用函数的信息（文件名 函数名 行号）
 func getFuncCallerInfo() (fileName string, funcName string, lineNo int) {
 	pc, fileName, lineNo, ok := runtime.Caller(3)
 	if !ok {
 		fmt.Println("get FuncCaller Info failed")
 	}
 
-	//对函数名进行处理
+	//获取到的是完整文件名，需要去除文件路径
 	_, fileName = path.Split(fileName)
+
+	//获取函数名
 	funcName = runtime.FuncForPC(pc).Name()
 	temp := strings.Split(funcName, ".")
 	funcName = strings.Join(temp[1:], "")
