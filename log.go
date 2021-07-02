@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 )
@@ -31,8 +32,9 @@ type logMsg struct {
 	level    LogLevel
 	msg      string
 	time     string
+	fileName string
 	funcName string
-	lineNo   int64
+	lineNo   int
 }
 
 type Logger struct {
@@ -92,7 +94,7 @@ func outPut() {
 	for {
 		select {
 		case log := <-logger.msg:
-			content = fmt.Sprintf("[%s] [%s] [%s line%d]%v", log.time, logger.LevelStr[log.level], log.funcName, log.lineNo, log.msg)
+			content = fmt.Sprintf("[%s] [%s] [%s %s() line%d]%v", log.time, logger.LevelStr[log.level], log.fileName, log.funcName, log.lineNo, log.msg)
 			if logger.OutputType&ONLY_TERMINAL == ONLY_TERMINAL {
 				fmt.Println(content)
 			}
@@ -131,8 +133,9 @@ func (l *Logger) handleLogMsg(logLevel LogLevel, msg interface{}) {
 	}
 
 	//填充函数名和行号
-	funcName, lineNo := getFuncCallerInfo()
-	log.funcName = funcName
+	fileName,funName, lineNo := getFuncCallerInfo()
+	log.fileName = fileName
+	log.funcName = funName
 	log.lineNo = lineNo
 
 	l.msg <- log
@@ -172,14 +175,17 @@ func Error(msg interface{}) {
 	logger.handleLogMsg(ERROR, msg)
 }
 
-func getFuncCallerInfo() (string, int64) {
-	_, funcName, lineNo, ok := runtime.Caller(3)
+func getFuncCallerInfo() (fileName string, funcName string, lineNo int) {
+	pc, fileName, lineNo, ok := runtime.Caller(3)
 	if !ok {
 		fmt.Println("get FuncCaller Info failed")
 	}
 
 	//对函数名进行处理
-	_, funcName = path.Split(funcName)
+	_, fileName = path.Split(fileName)
+	funcName = runtime.FuncForPC(pc).Name()
+	temp := strings.Split(funcName, ".")
+	funcName = strings.Join(temp[1:], "")
 
-	return funcName, int64(lineNo)
+	return fileName, funcName, lineNo
 }
