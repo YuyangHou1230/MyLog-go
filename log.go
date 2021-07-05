@@ -262,7 +262,7 @@ func (l *Logger) formatPrefix(log logMsg) string {
 		prefix = fmt.Sprintf("%s ", prefix)
 	}
 
-	//调用函数信息
+	//获取调用函数信息
 	var funcInfo string
 	if logger.Flags&LOG_FILENAME == LOG_FILENAME {
 		funcInfo += log.fileName
