@@ -69,7 +69,7 @@ var once1 sync.Once // 实现日志单例对象
 var once2 sync.Once // 实现只打开一次文件
 var logger *Logger  // 定义单例日志指针
 
-//获取单例Logger对象
+// 获取单例Logger对象
 func getInstance() *Logger {
 	if logger == nil {
 		once1.Do(func() {
@@ -89,15 +89,14 @@ func getInstance() *Logger {
 			}
 		})
 	}
-
 	return logger
 }
 
 func init() {
-	//初始化Log单例
+	// 初始化Log单例
 	getInstance()
 
-	//初始化日志文件保存路径
+	// 初始化日志文件保存路径
 	curPath, err := os.Getwd()
 	logger.filePath = curPath
 
@@ -106,13 +105,13 @@ func init() {
 		return
 	}
 
-	//运行goroutine实现日志的写入打印操作
+	// 运行goroutine实现日志的写入打印操作
 	go outPut()
 
 	fmt.Println("Logger init Success!")
 }
 
-//日志输出函数
+// 日志输出函数
 func outPut() {
 
 	var content string
@@ -124,12 +123,12 @@ func outPut() {
 
 			//content = fmt.Sprintf("[%s] [%s] [%s %s() line%d] %v", log.time, logger.LevelStr[log.level], log.fileName, log.funcName, log.lineNo, log.msg)
 
-			//判断是否输出到终端
+			// 判断是否输出到终端
 			if logger.OutputType&OnlyTerminal == OnlyTerminal {
 				fmt.Println(content)
 			}
 
-			//判断是否输出到文件
+			// 判断是否输出到文件
 			if logger.OutputType&OnlyFile == OnlyFile {
 				fmt.Fprintln(logger.fileObj, content)
 			}
@@ -142,7 +141,7 @@ func outPut() {
 
 func (l *Logger) handleLogMsg(logLevel LevelLog, msg interface{}) {
 
-	//第一次收到消息时判断是否需要打开文件
+	// 第一次收到消息时判断是否需要打开文件
 	once2.Do(func() {
 		if l.OutputType&OnlyFile == OnlyFile {
 			fileObj, err := os.OpenFile(path.Join(logger.filePath, logger.fileName), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
@@ -156,74 +155,74 @@ func (l *Logger) handleLogMsg(logLevel LevelLog, msg interface{}) {
 
 	})
 
-	//处理收到的消息，填充结构体
+	// 处理收到的消息，填充结构体
 	log := &logMsg{
 		level: logLevel,
 		msg:   fmt.Sprint(msg),
 		time:  time.Now().Format("2006-01-02 15:04:05"),
 	}
 
-	//填充函数名和行号
+	// 填充函数名和行号
 	fileName, funName, lineNo := getFuncCallerInfo()
 	log.fileName = fileName
 	log.funcName = funName
 	log.lineNo = lineNo
 
-	//放入通道中
+	// 放入通道中
 	l.msg <- log
 }
 
-//设置输出类型
+// 设置输出类型
 func SetOutputType(outputType OutputType) {
 	logger.OutputType = outputType
 }
 
-//设置输出类型
+// 设置输出类型
 func SetFlags(flags LogFlag) {
 	logger.Flags = flags
 }
 
-//设置log文件名称
+// 设置log文件名称
 func SetFileName(name string) {
 	logger.fileName = name
 }
 
-//信息输出
+// 信息输出
 func Info(msg interface{}) {
 	logger.handleLogMsg(INFO, msg)
 }
 
-//调试信息输出
+// 调试信息输出
 func Debug(msg interface{}) {
 	logger.handleLogMsg(DEBUG, msg)
 }
 
-//警告信息输出
+// 警告信息输出
 func Warning(msg interface{}) {
 	logger.handleLogMsg(WARNING, msg)
 }
 
-//严重错误信息输出
+// 严重错误信息输出
 func Fatal(msg interface{}) {
 	logger.handleLogMsg(FATAL, msg)
 }
 
-//错误信息输出
+// 错误信息输出
 func Error(msg interface{}) {
 	logger.handleLogMsg(ERROR, msg)
 }
 
-//获取打印日志语句所在函数的信息（文件名 函数名 行号）
+// 获取打印日志语句所在函数的信息（文件名 函数名 行号）
 func getFuncCallerInfo() (fileName string, funcName string, lineNo int) {
 	pc, fileName, lineNo, ok := runtime.Caller(3)
 	if !ok {
 		fmt.Println("get FuncCaller Info failed")
 	}
 
-	//获取到的是完整文件名，需要去除文件路径
+	// 获取到的是完整文件名，需要去除文件路径
 	_, fileName = path.Split(fileName)
 
-	//获取函数名
+	// 获取函数名
 	funcName = runtime.FuncForPC(pc).Name()
 	temp := strings.Split(funcName, ".")
 	funcName = strings.Join(temp[1:], "")
@@ -231,19 +230,19 @@ func getFuncCallerInfo() (fileName string, funcName string, lineNo int) {
 	return fileName, funcName, lineNo
 }
 
-//通过falgs形成前缀
+// 通过falgs形成前缀
 func (l *Logger) formatPrefix(log logMsg) string {
-	//判断无标志则返回为空
+	// 判断无标志则返回为空
 	if logger.Flags == LogNone {
 		return ""
 	}
 
-	//标识全有则按照固定格式输出所有信息
+	// 标识全有则按照固定格式输出所有信息
 	if logger.Flags == LogAll {
 		return fmt.Sprintf("[%s] [%s] [%s %s() line%d] ", log.time, logger.LevelStr[log.level], log.fileName, log.funcName, log.lineNo)
 	}
 
-	//否则按照标识进行组合
+	// 否则按照标识进行组合
 	var prefix string
 	if logger.Flags&LogTime == LogTime {
 		prefix += fmt.Sprintf("[%s]", log.time)
@@ -261,7 +260,7 @@ func (l *Logger) formatPrefix(log logMsg) string {
 		prefix = fmt.Sprintf("%s ", prefix)
 	}
 
-	//获取调用函数信息
+	// 获取调用函数信息
 	var funcInfo string
 	if logger.Flags&LogFileName == LogFileName {
 		funcInfo += log.fileName
