@@ -10,42 +10,42 @@ import (
 	"time"
 )
 
-//日志等级
-type LogLevel uint8
+// 日志等级
+type LevelLog uint8
 
 const (
-	DEBUG LogLevel = iota
+	DEBUG LevelLog = iota
 	INFO
 	WARNING
 	ERROR
 	FATAL
 )
 
-//输出类型
+// 输出类型
 type OutputType uint8
 
 const (
-	ONLY_TERMINAL          OutputType                  = iota //输出到终端
-	ONLY_FILE                                                 //输出到文件
-	BOTH_TERMINAL_AND_FILE = ONLY_TERMINAL | ONLY_FILE        //既输出到终端也输出到文件
+	OnlyTerminal        OutputType                = iota // 输出到终端
+	OnlyFile                                             // 输出到文件
+	BothTerminalAndFile = OnlyTerminal | OnlyFile        // 既输出到终端也输出到文件
 )
 
-//日志输出字段定制
+// 日志输出字段定制
 type LogFlag uint8
 
 const (
-	LOG_NONE     LogFlag = 0b00000000 //无前缀标识
-	LOG_TIME     LogFlag = 0b00000001 //有时间标识
-	LOG_LEVEL    LogFlag = 0b00000010 //有等级标识
-	LOG_FILENAME LogFlag = 0b00000100 //有文件名标识
-	LOG_FUNCNAME LogFlag = 0b00001000 //有函数名标识
-	LOG_LINENO   LogFlag = 0b00010000 //有行号标识
-	LOG_ALL      LogFlag = 0b00011111 //上述标识均有
+	LogNone     LogFlag = 0b00000000 // 无前缀标识
+	LogTime     LogFlag = 0b00000001 // 有时间标识
+	LogLevel    LogFlag = 0b00000010 // 有等级标识
+	LogFileName LogFlag = 0b00000100 // 有文件名标识
+	LogFuncName LogFlag = 0b00001000 // 有函数名标识
+	LogLineno   LogFlag = 0b00010000 // 有行号标识
+	LogAll      LogFlag = 0b00011111 // 上述标识均有
 )
 
 //单条日志信息结构体
 type logMsg struct {
-	level    LogLevel
+	level    LevelLog
 	msg      string
 	time     string
 	fileName string
@@ -53,22 +53,21 @@ type logMsg struct {
 	lineNo   int
 }
 
-//日志对象结构体
+// 日志对象结构体
 type Logger struct {
-	Level      LogLevel            //日志等级
-	LevelStr   map[LogLevel]string //日志标识map
-	OutputType OutputType          //输出类型
-	Flags      LogFlag             //输出字段定义
-
-	fileName string       //文件名
-	filePath string       //日志路径
-	fileObj  *os.File     //日志对象
-	msg      chan *logMsg //存储日志msg的通道
+	Level      LevelLog            // 日志等级
+	LevelStr   map[LevelLog]string // 日志标识map
+	OutputType OutputType          // 输出类型
+	Flags      LogFlag             // 输出字段定义
+	fileName   string              // 文件名
+	filePath   string              // 日志路径
+	fileObj    *os.File            // 日志对象
+	msg        chan *logMsg        // 存储日志msg的通道
 }
 
-var once1 sync.Once //实现日志单例对象
-var once2 sync.Once //实现只打开一次文件
-var logger *Logger  //定义单例日志指针
+var once1 sync.Once // 实现日志单例对象
+var once2 sync.Once // 实现只打开一次文件
+var logger *Logger  // 定义单例日志指针
 
 //获取单例Logger对象
 func getInstance() *Logger {
@@ -76,15 +75,15 @@ func getInstance() *Logger {
 		once1.Do(func() {
 			logger = &Logger{
 				Level: DEBUG,
-				LevelStr: map[LogLevel]string{
+				LevelStr: map[LevelLog]string{
 					DEBUG:   "DEBUG  ",
 					INFO:    "INFO   ",
 					WARNING: "WARNING",
 					ERROR:   "ERROR  ",
 					FATAL:   "FATAL  ",
 				},
-				OutputType: BOTH_TERMINAL_AND_FILE,
-				Flags:      LOG_ALL,
+				OutputType: BothTerminalAndFile,
+				Flags:      LogAll,
 				fileName:   "test.log",
 				msg:        make(chan *logMsg, 1000),
 			}
@@ -126,12 +125,12 @@ func outPut() {
 			//content = fmt.Sprintf("[%s] [%s] [%s %s() line%d] %v", log.time, logger.LevelStr[log.level], log.fileName, log.funcName, log.lineNo, log.msg)
 
 			//判断是否输出到终端
-			if logger.OutputType&ONLY_TERMINAL == ONLY_TERMINAL {
+			if logger.OutputType&OnlyTerminal == OnlyTerminal {
 				fmt.Println(content)
 			}
 
 			//判断是否输出到文件
-			if logger.OutputType&ONLY_FILE == ONLY_FILE {
+			if logger.OutputType&OnlyFile == OnlyFile {
 				fmt.Fprintln(logger.fileObj, content)
 			}
 		default:
@@ -141,11 +140,11 @@ func outPut() {
 
 }
 
-func (l *Logger) handleLogMsg(logLevel LogLevel, msg interface{}) {
+func (l *Logger) handleLogMsg(logLevel LevelLog, msg interface{}) {
 
 	//第一次收到消息时判断是否需要打开文件
 	once2.Do(func() {
-		if l.OutputType&ONLY_FILE == ONLY_FILE {
+		if l.OutputType&OnlyFile == OnlyFile {
 			fileObj, err := os.OpenFile(path.Join(logger.filePath, logger.fileName), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 			if err != nil {
 				fmt.Println("open file failed, err:", err)
@@ -235,22 +234,22 @@ func getFuncCallerInfo() (fileName string, funcName string, lineNo int) {
 //通过falgs形成前缀
 func (l *Logger) formatPrefix(log logMsg) string {
 	//判断无标志则返回为空
-	if logger.Flags == LOG_NONE {
+	if logger.Flags == LogNone {
 		return ""
 	}
 
 	//标识全有则按照固定格式输出所有信息
-	if logger.Flags == LOG_ALL {
+	if logger.Flags == LogAll {
 		return fmt.Sprintf("[%s] [%s] [%s %s() line%d] ", log.time, logger.LevelStr[log.level], log.fileName, log.funcName, log.lineNo)
 	}
 
 	//否则按照标识进行组合
 	var prefix string
-	if logger.Flags&LOG_TIME == LOG_TIME {
+	if logger.Flags&LogTime == LogTime {
 		prefix += fmt.Sprintf("[%s]", log.time)
 	}
 
-	if logger.Flags&LOG_LEVEL == LOG_LEVEL {
+	if logger.Flags&LogLevel == LogLevel {
 		if len(prefix) > 0 {
 			prefix += " " + fmt.Sprintf("[%s]", logger.LevelStr[log.level])
 		} else {
@@ -264,11 +263,11 @@ func (l *Logger) formatPrefix(log logMsg) string {
 
 	//获取调用函数信息
 	var funcInfo string
-	if logger.Flags&LOG_FILENAME == LOG_FILENAME {
+	if logger.Flags&LogFileName == LogFileName {
 		funcInfo += log.fileName
 	}
 
-	if logger.Flags&LOG_FUNCNAME == LOG_FUNCNAME {
+	if logger.Flags&LogFuncName == LogFuncName {
 		if len(funcInfo) > 0 {
 			funcInfo = " " + log.funcName + "()"
 		} else {
@@ -276,7 +275,7 @@ func (l *Logger) formatPrefix(log logMsg) string {
 		}
 	}
 
-	if logger.Flags&LOG_LINENO == LOG_LINENO {
+	if logger.Flags&LogLineno == LogLineno {
 		if len(funcInfo) > 0 {
 			funcInfo += " " + fmt.Sprintf("line%d", log.lineNo)
 		} else {
