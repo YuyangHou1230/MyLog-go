@@ -28,6 +28,7 @@ const (
 	BOTH_TERMINAL_AND_FILE = ONLY_TERMINAL | ONLY_FILE        //既输出到终端也输出到文件
 )
 
+//单条日志信息结构体
 type logMsg struct {
 	level    LogLevel
 	msg      string
@@ -37,6 +38,7 @@ type logMsg struct {
 	lineNo   int
 }
 
+//日志对象结构体
 type Logger struct {
 	Level      LogLevel            //日志等级
 	LevelStr   map[LogLevel]string //日志标识map
@@ -48,9 +50,9 @@ type Logger struct {
 	msg      chan *logMsg //存储日志msg的通道
 }
 
-var once1 sync.Once
-var once2 sync.Once
-var logger *Logger
+var once1 sync.Once		//实现日志单例对象
+var once2 sync.Once		//实现只打开一次文件
+var logger *Logger		//定义单例日志指针
 
 //获取单例Logger对象
 func getInstance() *Logger {
@@ -75,30 +77,41 @@ func getInstance() *Logger {
 	return logger
 }
 
-//初始化Log单例
+
 func init() {
+	//初始化Log单例
 	getInstance()
 
-	curPath, _ := os.Getwd()
+	//初始化日志文件保存路径
+	curPath, err := os.Getwd()
 	logger.filePath = curPath
 
-	//打开文件
+	if err != nil {
+		fmt.Println("get current file path failed! err:", err)
+		return
+	}
 
+	//运行goroutine实现日志的写入打印操作
 	go outPut()
 
+	fmt.Println("Logger init Success!")
 }
 
+//日志输出函数
 func outPut() {
 
 	var content string
 	for {
 		select {
 		case log := <-logger.msg:
-			content = fmt.Sprintf("[%s] [%s] [%s %s() line%d]%v", log.time, logger.LevelStr[log.level], log.fileName, log.funcName, log.lineNo, log.msg)
+			content = fmt.Sprintf("[%s] [%s] [%s %s() line%d] %v", log.time, logger.LevelStr[log.level], log.fileName, log.funcName, log.lineNo, log.msg)
+
+			//判断是否输出到终端
 			if logger.OutputType&ONLY_TERMINAL == ONLY_TERMINAL {
 				fmt.Println(content)
 			}
 
+			//判断是否输出到文件
 			if logger.OutputType&ONLY_FILE == ONLY_FILE {
 				fmt.Fprintln(logger.fileObj, content)
 			}
@@ -138,9 +151,11 @@ func (l *Logger) handleLogMsg(logLevel LogLevel, msg interface{}) {
 	log.funcName = funName
 	log.lineNo = lineNo
 
+	//放入通道中
 	l.msg <- log
 }
 
+//设置输出类型
 func SetOutputType(outputType OutputType) {
 	logger.OutputType = outputType
 }
@@ -175,7 +190,7 @@ func Error(msg interface{}) {
 	logger.handleLogMsg(ERROR, msg)
 }
 
-//获取调用函数的信息（文件名 函数名 行号）
+//获取打印日志语句所在函数的信息（文件名 函数名 行号）
 func getFuncCallerInfo() (fileName string, funcName string, lineNo int) {
 	pc, fileName, lineNo, ok := runtime.Caller(3)
 	if !ok {
