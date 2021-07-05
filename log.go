@@ -34,8 +34,8 @@ const (
 type LogFlag uint8
 
 const (
-	LOG_NONE     LogFlag = 0b00000000 //无前缀标志
-	LOG_TIME     LogFlag = 0b00000001 //有时间标志
+	LOG_NONE     LogFlag = 0b00000000 //无前缀标识
+	LOG_TIME     LogFlag = 0b00000001 //有时间标识
 	LOG_LEVEL    LogFlag = 0b00000010 //有等级标识
 	LOG_FILENAME LogFlag = 0b00000100 //有文件名标识
 	LOG_FUNCNAME LogFlag = 0b00001000 //有函数名标识
