@@ -34,13 +34,13 @@ const (
 type LogFlag uint8
 
 const (
-	LOG_NONE     LogFlag = 0b00000000			//无前缀标志
-	LOG_TIME     LogFlag = 0b00000001			//有时间标志
-	LOG_LEVEL    LogFlag = 0b00000010		//有等级标识
-	LOG_FILENAME LogFlag = 0b00000100	//有文件名标识
-	LOG_FUNCNAME LogFlag = 0b00001000	//有函数名标识
-	LOG_LINENO   LogFlag = 0b00010000	//有行号标识
-	LOG_ALL      LogFlag = 0b00011111	//上述标识均有
+	LOG_NONE     LogFlag = 0b00000000 //无前缀标志
+	LOG_TIME     LogFlag = 0b00000001 //有时间标志
+	LOG_LEVEL    LogFlag = 0b00000010 //有等级标识
+	LOG_FILENAME LogFlag = 0b00000100 //有文件名标识
+	LOG_FUNCNAME LogFlag = 0b00001000 //有函数名标识
+	LOG_LINENO   LogFlag = 0b00010000 //有行号标识
+	LOG_ALL      LogFlag = 0b00011111 //上述标识均有
 )
 
 //单条日志信息结构体
@@ -120,7 +120,6 @@ func outPut() {
 	for {
 		select {
 		case log := <-logger.msg:
-
 
 			content = logger.formatPrefix(*log) + log.msg
 
@@ -245,18 +244,16 @@ func (l *Logger) formatPrefix(log logMsg) string {
 		return fmt.Sprintf("[%s] [%s] [%s %s() line%d] ", log.time, logger.LevelStr[log.level], log.fileName, log.funcName, log.lineNo)
 	}
 
-
 	//否则按照标识进行组合
 	var prefix string
 	if logger.Flags&LOG_TIME == LOG_TIME {
 		prefix += fmt.Sprintf("[%s]", log.time)
 	}
 
-
 	if logger.Flags&LOG_LEVEL == LOG_LEVEL {
 		if len(prefix) > 0 {
 			prefix += " " + fmt.Sprintf("[%s]", logger.LevelStr[log.level])
-		}else{
+		} else {
 			prefix += fmt.Sprintf("[%s]", logger.LevelStr[log.level])
 		}
 	}
@@ -274,7 +271,7 @@ func (l *Logger) formatPrefix(log logMsg) string {
 	if logger.Flags&LOG_FUNCNAME == LOG_FUNCNAME {
 		if len(funcInfo) > 0 {
 			funcInfo = " " + log.funcName + "()"
-		}else{
+		} else {
 			funcInfo += log.funcName + "()"
 		}
 	}
@@ -282,7 +279,7 @@ func (l *Logger) formatPrefix(log logMsg) string {
 	if logger.Flags&LOG_LINENO == LOG_LINENO {
 		if len(funcInfo) > 0 {
 			funcInfo += " " + fmt.Sprintf("line%d", log.lineNo)
-		}else{
+		} else {
 			funcInfo += fmt.Sprintf("line%d", log.lineNo)
 		}
 	}
