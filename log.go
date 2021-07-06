@@ -25,8 +25,8 @@ const (
 type OutputType uint8
 
 const (
-	ONLY_TERMINAL       OutputType                = iota // 输出到终端
-	ONLY_FILE                                             // 输出到文件
+	ONLY_TERMINAL          OutputType                  = iota // 输出到终端
+	ONLY_FILE                                                 // 输出到文件
 	BOTH_TERMINAL_AND_FILE = ONLY_TERMINAL | ONLY_FILE        // 既输出到终端也输出到文件
 )
 
@@ -36,6 +36,7 @@ type LogFlag uint8
 const (
 	FLAG_NONE     LogFlag = 0b00000000 // 无前缀标识
 	FLAG_TIME     LogFlag = 0b00000001 // 有时间标识
+	FLAG_THREADID LogFlag = 0b00000010 // 有线程ID标识
 	FLAG_LEVEL    LogFlag = 0b00000010 // 有等级标识
 	FLAG_FILENAME LogFlag = 0b00000100 // 有文件名标识
 	FLAG_FUNCNAME LogFlag = 0b00001000 // 有函数名标识
@@ -260,6 +261,8 @@ func (l *Logger) formatPrefix(log logMsg) string {
 	if len(prefix) > 0 {
 		prefix = fmt.Sprintf("%s ", prefix)
 	}
+
+	//线程ID
 
 	//获取调用函数信息
 	var funcInfo string
