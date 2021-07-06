@@ -25,22 +25,23 @@ const (
 type OutputType uint8
 
 const (
-	OnlyTerminal        OutputType                = iota // 输出到终端
-	OnlyFile                                             // 输出到文件
-	BothTerminalAndFile = OnlyTerminal | OnlyFile        // 既输出到终端也输出到文件
+	ONLY_TERMINAL          OutputType                  = iota // 输出到终端
+	ONLY_FILE                                                 // 输出到文件
+	BOTH_TERMINAL_AND_FILE = ONLY_TERMINAL | ONLY_FILE        // 既输出到终端也输出到文件
 )
 
 // 日志输出字段定制
 type LogFlag uint8
 
 const (
-	LogNone     LogFlag = 0b00000000 // 无前缀标识
-	LogTime     LogFlag = 0b00000001 // 有时间标识
-	LogLevel    LogFlag = 0b00000010 // 有等级标识
-	LogFileName LogFlag = 0b00000100 // 有文件名标识
-	LogFuncName LogFlag = 0b00001000 // 有函数名标识
-	LogLineno   LogFlag = 0b00010000 // 有行号标识
-	LogAll      LogFlag = 0b00011111 // 上述标识均有
+	FLAG_NONE     LogFlag = 0b00000000 // 无前缀标识
+	FLAG_TIME     LogFlag = 0b00000001 // 有时间标识
+	FLAG_THREADID LogFlag = 0b00000010 // 有线程ID标识
+	FLAG_LEVEL    LogFlag = 0b00000010 // 有等级标识
+	FLAG_FILENAME LogFlag = 0b00000100 // 有文件名标识
+	FLAG_FUNCNAME LogFlag = 0b00001000 // 有函数名标识
+	FLAG_LINENO   LogFlag = 0b00010000 // 有行号标识
+	FLAG_ALL      LogFlag = 0b00011111 // 上述标识均有
 )
 
 //单条日志信息结构体
@@ -82,8 +83,8 @@ func getInstance() *Logger {
 					ERROR:   "ERROR  ",
 					FATAL:   "FATAL  ",
 				},
-				OutputType: BothTerminalAndFile,
-				Flags:      LogAll,
+				OutputType: BOTH_TERMINAL_AND_FILE,
+				Flags:      FLAG_ALL,
 				fileName:   "test.log",
 				msg:        make(chan *logMsg, 1000),
 			}
@@ -123,13 +124,13 @@ func outPut() {
 
 			//content = fmt.Sprintf("[%s] [%s] [%s %s() line%d] %v", log.time, logger.LevelStr[log.level], log.fileName, log.funcName, log.lineNo, log.msg)
 
-			// 判断是否输出到终端
-			if logger.OutputType&OnlyTerminal == OnlyTerminal {
+			//判断是否输出到终端
+			if logger.OutputType&ONLY_TERMINAL == ONLY_TERMINAL {
 				fmt.Println(content)
 			}
 
-			// 判断是否输出到文件
-			if logger.OutputType&OnlyFile == OnlyFile {
+			//判断是否输出到文件
+			if logger.OutputType&ONLY_FILE == ONLY_FILE {
 				fmt.Fprintln(logger.fileObj, content)
 			}
 		default:
@@ -143,7 +144,7 @@ func (l *Logger) handleLogMsg(logLevel LevelLog, msg interface{}) {
 
 	// 第一次收到消息时判断是否需要打开文件
 	once2.Do(func() {
-		if l.OutputType&OnlyFile == OnlyFile {
+		if l.OutputType&ONLY_FILE == ONLY_FILE {
 			fileObj, err := os.OpenFile(path.Join(logger.filePath, logger.fileName), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 			if err != nil {
 				fmt.Println("open file failed, err:", err)
@@ -232,23 +233,23 @@ func getFuncCallerInfo() (fileName string, funcName string, lineNo int) {
 
 // 通过falgs形成前缀
 func (l *Logger) formatPrefix(log logMsg) string {
-	// 判断无标志则返回为空
-	if logger.Flags == LogNone {
+	//判断无标志则返回为空
+	if logger.Flags == FLAG_NONE {
 		return ""
 	}
 
-	// 标识全有则按照固定格式输出所有信息
-	if logger.Flags == LogAll {
+	//标识全有则按照固定格式输出所有信息
+	if logger.Flags == FLAG_ALL {
 		return fmt.Sprintf("[%s] [%s] [%s %s() line%d] ", log.time, logger.LevelStr[log.level], log.fileName, log.funcName, log.lineNo)
 	}
 
 	// 否则按照标识进行组合
 	var prefix string
-	if logger.Flags&LogTime == LogTime {
+	if logger.Flags&FLAG_TIME == FLAG_TIME {
 		prefix += fmt.Sprintf("[%s]", log.time)
 	}
 
-	if logger.Flags&LogLevel == LogLevel {
+	if logger.Flags&FLAG_LEVEL == FLAG_LEVEL {
 		if len(prefix) > 0 {
 			prefix += " " + fmt.Sprintf("[%s]", logger.LevelStr[log.level])
 		} else {
@@ -259,14 +260,15 @@ func (l *Logger) formatPrefix(log logMsg) string {
 	if len(prefix) > 0 {
 		prefix = fmt.Sprintf("%s ", prefix)
 	}
+	//线程ID
 
-	// 获取调用函数信息
+	//获取调用函数信息
 	var funcInfo string
-	if logger.Flags&LogFileName == LogFileName {
+	if logger.Flags&FLAG_FILENAME == FLAG_FILENAME {
 		funcInfo += log.fileName
 	}
 
-	if logger.Flags&LogFuncName == LogFuncName {
+	if logger.Flags&FLAG_FUNCNAME == FLAG_FUNCNAME {
 		if len(funcInfo) > 0 {
 			funcInfo = " " + log.funcName + "()"
 		} else {
@@ -274,7 +276,7 @@ func (l *Logger) formatPrefix(log logMsg) string {
 		}
 	}
 
-	if logger.Flags&LogLineno == LogLineno {
+	if logger.Flags&FLAG_LINENO == FLAG_LINENO {
 		if len(funcInfo) > 0 {
 			funcInfo += " " + fmt.Sprintf("line%d", log.lineNo)
 		} else {
