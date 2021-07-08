@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -44,7 +45,7 @@ const (
 	FLAG_ALL      LogFlag = 0b00011111 // 上述标识均有
 )
 
-//单条日志信息结构体
+// 单条日志信息结构体
 type logMsg struct {
 	level    LevelLog
 	msg      string
@@ -66,14 +67,14 @@ type Logger struct {
 	msg        chan *logMsg        // 存储日志msg的通道
 }
 
-var once1 sync.Once // 实现日志单例对象
-var once2 sync.Once // 实现只打开一次文件
-var logger *Logger  // 定义单例日志指针
+var onceLogger sync.Once   // 实现日志单例对象
+var onceOpenFile sync.Once // 实现只打开一次文件
+var logger *Logger         // 定义单例日志指针
 
 // 获取单例Logger对象
 func getInstance() *Logger {
 	if logger == nil {
-		once1.Do(func() {
+		onceLogger.Do(func() {
 			logger = &Logger{
 				Level: DEBUG,
 				LevelStr: map[LevelLog]string{
@@ -85,7 +86,7 @@ func getInstance() *Logger {
 				},
 				OutputType: BOTH_TERMINAL_AND_FILE,
 				Flags:      FLAG_ALL,
-				fileName:   "test.log",
+				fileName:   time.Now().Format("20060102") + "_test.log",
 				msg:        make(chan *logMsg, 1000),
 			}
 		})
@@ -99,13 +100,11 @@ func init() {
 
 	// 初始化日志文件保存路径
 	curPath, err := os.Getwd()
-	logger.filePath = curPath
-
 	if err != nil {
 		fmt.Println("get current file path failed! err:", err)
 		return
 	}
-
+	logger.filePath = curPath
 	// 运行goroutine实现日志的写入打印操作
 	go outPut()
 
@@ -114,55 +113,42 @@ func init() {
 
 // 日志输出函数
 func outPut() {
-
 	var content string
 	for {
 		select {
 		case log := <-logger.msg:
-
 			content = logger.formatPrefix(*log) + log.msg
-
-			//content = fmt.Sprintf("[%s] [%s] [%s %s() line%d] %v", log.time, logger.LevelStr[log.level], log.fileName, log.funcName, log.lineNo, log.msg)
-
-			//判断是否输出到终端
+			// 判断是否输出到终端
 			if logger.OutputType&ONLY_TERMINAL == ONLY_TERMINAL {
 				fmt.Println(content)
 			}
-
-			//判断是否输出到文件
-			if logger.OutputType&ONLY_FILE == ONLY_FILE {
-				fmt.Fprintln(logger.fileObj, content)
-			}
-		default:
-			break
+		}
+		// 判断是否输出到文件
+		if logger.OutputType&ONLY_FILE == ONLY_FILE {
+			fmt.Fprintln(logger.fileObj, content)
 		}
 	}
-
 }
 
 func (l *Logger) handleLogMsg(logLevel LevelLog, msg interface{}) {
-
 	// 第一次收到消息时判断是否需要打开文件
-	once2.Do(func() {
+	onceOpenFile.Do(func() {
 		if l.OutputType&ONLY_FILE == ONLY_FILE {
 			fileObj, err := os.OpenFile(path.Join(logger.filePath, logger.fileName), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 			if err != nil {
 				fmt.Println("open file failed, err:", err)
 				return
 			}
-
 			logger.fileObj = fileObj
 		}
 
 	})
-
 	// 处理收到的消息，填充结构体
 	log := &logMsg{
 		level: logLevel,
 		msg:   fmt.Sprint(msg),
 		time:  time.Now().Format("2006-01-02 15:04:05"),
 	}
-
 	// 填充函数名和行号
 	fileName, funName, lineNo := getFuncCallerInfo()
 	log.fileName = fileName
@@ -213,6 +199,23 @@ func Error(msg interface{}) {
 	logger.handleLogMsg(ERROR, msg)
 }
 
+// 获取协程ID
+func getGoId() int {
+	defer func() {
+		if err := recover(); err != nil {
+		}
+	}()
+
+	var buf [64]byte
+	n := runtime.Stack(buf[:], false)
+	idField := strings.Fields(strings.TrimPrefix(string(buf[:n]), "goroutine "))[0]
+	id, err := strconv.Atoi(idField)
+	if err != nil {
+		panic(fmt.Sprintf("cannot get goroutine id: %v", err))
+	}
+	return id
+}
+
 // 获取打印日志语句所在函数的信息（文件名 函数名 行号）
 func getFuncCallerInfo() (fileName string, funcName string, lineNo int) {
 	pc, fileName, lineNo, ok := runtime.Caller(3)
@@ -233,14 +236,14 @@ func getFuncCallerInfo() (fileName string, funcName string, lineNo int) {
 
 // 通过falgs形成前缀
 func (l *Logger) formatPrefix(log logMsg) string {
-	//判断无标志则返回为空
+	// 判断无标志则返回为空
 	if logger.Flags == FLAG_NONE {
 		return ""
 	}
 
-	//标识全有则按照固定格式输出所有信息
+	// 标识全有则按照固定格式输出所有信息
 	if logger.Flags == FLAG_ALL {
-		return fmt.Sprintf("[%s] [%s] [%s %s() line%d] ", log.time, logger.LevelStr[log.level], log.fileName, log.funcName, log.lineNo)
+		return fmt.Sprintf("[%s] [%s] [%s %s() line%d] [goId:%d] ", log.time, logger.LevelStr[log.level], log.fileName, log.funcName, log.lineNo, getGoId())
 	}
 
 	// 否则按照标识进行组合
@@ -260,9 +263,12 @@ func (l *Logger) formatPrefix(log logMsg) string {
 	if len(prefix) > 0 {
 		prefix = fmt.Sprintf("%s ", prefix)
 	}
-	//线程ID
-
-	//获取调用函数信息
+	// 线程ID 协程
+	var goroutineId string
+	if logger.Flags&FLAG_THREADID == FLAG_THREADID {
+		goroutineId += fmt.Sprintf("[goId:%d] ", getGoId())
+	}
+	// 获取调用函数信息
 	var funcInfo string
 	if logger.Flags&FLAG_FILENAME == FLAG_FILENAME {
 		funcInfo += log.fileName
@@ -288,9 +294,5 @@ func (l *Logger) formatPrefix(log logMsg) string {
 		funcInfo = fmt.Sprintf("[%s] ", funcInfo)
 	}
 
-	if len(prefix) > 0 && len(funcInfo) > 0 {
-		return prefix + "" + funcInfo + ""
-	}
-
-	return prefix + funcInfo
+	return prefix + funcInfo + goroutineId
 }
