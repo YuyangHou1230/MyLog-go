@@ -53,6 +53,7 @@ type logMsg struct {
 	fileName string
 	funcName string
 	lineNo   int
+	goID     int
 }
 
 // 日志对象结构体
@@ -148,6 +149,7 @@ func (l *Logger) handleLogMsg(logLevel LevelLog, msg interface{}) {
 		level: logLevel,
 		msg:   fmt.Sprint(msg),
 		time:  time.Now().Format("2006-01-02 15:04:05"),
+		goID : getGoId(),
 	}
 	// 填充函数名和行号
 	fileName, funName, lineNo := getFuncCallerInfo()
@@ -243,7 +245,7 @@ func (l *Logger) formatPrefix(log logMsg) string {
 
 	// 标识全有则按照固定格式输出所有信息
 	if logger.Flags == FLAG_ALL {
-		return fmt.Sprintf("[%s] [%s] [%s %s() line%d] [goId:%d] ", log.time, logger.LevelStr[log.level], log.fileName, log.funcName, log.lineNo, getGoId())
+		return fmt.Sprintf("[%s] [%s] [%s %s() line%d] [goId:%d] ", log.time, logger.LevelStr[log.level], log.fileName, log.funcName, log.lineNo, log.goID)
 	}
 
 	// 否则按照标识进行组合
@@ -266,7 +268,7 @@ func (l *Logger) formatPrefix(log logMsg) string {
 	// 线程ID 协程
 	var goroutineId string
 	if logger.Flags&FLAG_THREADID == FLAG_THREADID {
-		goroutineId += fmt.Sprintf("[goId:%d] ", getGoId())
+		goroutineId += fmt.Sprintf("[goId:%d] ", log.goID)
 	}
 	// 获取调用函数信息
 	var funcInfo string
